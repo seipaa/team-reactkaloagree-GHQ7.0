@@ -22,13 +22,25 @@ def get_all_recommendations(
     Get all recommendations sorted by priority.
     Shows all farms with their latest recommendations.
     """
-    # Get all predictions with recommendations
-    predictions = (
-        db.query(Prediction)
-        .filter(Prediction.recommendation.isnot(None))
-        .order_by(Prediction.created_at.desc())
-        .all()
-    )
+    # Get predictions with recommendations
+    if current_user.role == "FARMER":
+        if current_user.farm_id:
+            predictions = (
+                db.query(Prediction)
+                .filter(Prediction.farm_id == current_user.farm_id)
+                .filter(Prediction.recommendation.isnot(None))
+                .order_by(Prediction.created_at.desc())
+                .all()
+            )
+        else:
+            predictions = []
+    else:
+        predictions = (
+            db.query(Prediction)
+            .filter(Prediction.recommendation.isnot(None))
+            .order_by(Prediction.created_at.desc())
+            .all()
+        )
 
     # Build recommendations with farm info
     recommendations = []
@@ -65,7 +77,11 @@ def get_farm_recommendation(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Get the latest recommendation for a specific farm."""
+    # Access Control: Farmers can only see their own farm recommendation
+    if current_user.role == "FARMER" and current_user.farm_id != farm_id:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="Access denied")
+
     # Get latest prediction for this farm
     prediction = (
         db.query(Prediction)

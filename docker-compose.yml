@@ -22,7 +22,15 @@ services:
       - AI_API_URL=${AI_API_URL:-http://localhost:8001/predict}
       - AI_API_KEY=${AI_API_KEY:-}
       - BMKG_API_URL=https://api.bmkg.go.id
-      - CORS_ORIGINS=http://localhost:3001
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:3001,http://localhost:8080,http://localhost,https://sterility-glimmer-fruit.ngrok-free.dev
+      - ROBOFLOW_API_URL=https://serverless.roboflow.com
+      - ROBOFLOW_API_KEY=${ROBOFLOW_API_KEY:-f3P0JQQEV0oXN96J9oud}
+      - ROBOFLOW_MODEL_1_ID=chili-maturity-and-condition-datasets/3
+      - ROBOFLOW_WORKSPACE_1=university-of-southeastern-philippines-cnl9c
+      - ROBOFLOW_MODEL_2_ID=pepper-ydxzo/4
+      - ROBOFLOW_WORKSPACE_2=smartfram
+      - ROBOFLOW_MODEL_3_ID=mongkol4/1
+      - ROBOFLOW_WORKSPACE_3=mongkol-kj0cr
     volumes:
       - ./apps/backend:/app
       - agromesh-uploads:/app/uploads
@@ -36,11 +44,11 @@ services:
     build:
       context: ./apps/web
       dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=/api
     container_name: agromesh-frontend
     ports:
       - "3001:3000"
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
     depends_on:
       - backend
     restart: unless-stopped
@@ -68,6 +76,20 @@ services:
       - minio
     entrypoint: >
       /bin/sh -c " sleep 5; mc alias set myminio http://minio:9000 $${MINIO_ACCESS_KEY:-minioadmin} $${MINIO_SECRET_KEY:-minioadmin}; mc mb myminio/$${MINIO_BUCKET:-agromesh-images} --ignore-existing; mc anonymous set download myminio/$${MINIO_BUCKET:-agromesh-images}; echo 'MinIO bucket ready'; exit 0; "
+
+  # --- Nginx Gateway Proxy ---
+  nginx:
+    image: nginx:alpine
+    container_name: agromesh-nginx
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - frontend
+      - backend
+      - minio
+    restart: unless-stopped
 
 volumes:
   agromesh-uploads:

@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { User, AuthState } from "@/types";
+import { api } from "./api";
 
 interface AuthContextType extends AuthState {
     login: (email: string, password: string) => Promise<void>;
@@ -30,19 +31,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const login = async (email: string, password: string) => {
-        const response = await fetch("http://localhost:8000/auth/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, password }),
-        });
+        try {
+            const response = await api.post("/auth/login", { email, password });
+            const data = response.data;
 
-        if (!response.ok) {
+            // Store token
+            setToken(data.access_token);
+            localStorage.setItem("token", data.access_token);
+
+            // Fetch user info
+            const userResponse = await api.get("/auth/me", {
+                headers: { Authorization: `Bearer ${data.access_token}` }
+            });
+            const userData = userResponse.data;
+
+            // Store user
+            setUser(userData);
+            localStorage.setItem("user", JSON.stringify(userData));
+        } catch (error) {
+            console.error("Login error:", error);
             throw new Error("Login failed");
         }
-
-        const data = await response.json();
-        setToken(data.access_token);
-        localStorage.setItem("token", data.access_token);
     };
 
     const logout = () => {

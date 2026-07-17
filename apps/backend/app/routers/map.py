@@ -27,7 +27,13 @@ def get_map_markers(
     - ready: Red - Ready for harvest
     - disease: Black - Disease detected
     """
-    farms = db.query(Farm).all()
+    if current_user.role == "FARMER":
+        if current_user.farm_id:
+            farms = db.query(Farm).filter(Farm.id == current_user.farm_id).all()
+        else:
+            farms = []
+    else:
+        farms = db.query(Farm).all()
     markers = []
     
     for farm in farms:

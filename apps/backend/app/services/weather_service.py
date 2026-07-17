@@ -36,6 +36,12 @@ def fetch_bmkg_weather(lat: float, lon: float) -> Dict[str, Any]:
         # Parse BMKG response
         if "data" in data and len(data["data"]) > 0:
             current = data["data"][0]
+            location = current.get("location") or data.get("location")
+            if not location:
+                if abs(lat - (-6.81)) < 0.1 and abs(lon - 107.02) < 0.1:
+                    location = "Cianjur, Jawa Barat"
+                else:
+                    location = "Jawa Barat, Indonesia"
             return {
                 "temperature": current.get("t"),  # Temperature
                 "humidity": current.get("hu"),    # Humidity
@@ -44,6 +50,7 @@ def fetch_bmkg_weather(lat: float, lon: float) -> Dict[str, Any]:
                 "wind": current.get("ws"),         # Wind speed
                 "rain": current.get("rh"),          # Rain humidity
                 "warning": current.get("warning"),
+                "location": location,
                 "timestamp": datetime.utcnow(),
             }
         
@@ -53,13 +60,20 @@ def fetch_bmkg_weather(lat: float, lon: float) -> Dict[str, Any]:
     except requests.RequestException as e:
         print(f"BMKG API error: {e}")
         # Return mock data for demo purposes
-        return generate_mock_weather()
+        return generate_mock_weather(lat, lon)
 
 
-def generate_mock_weather() -> Dict[str, Any]:
+def generate_mock_weather(lat: float = None, lon: float = None) -> Dict[str, Any]:
     """Generate realistic mock weather data for demo."""
     import random
     
+    location = "Cianjur, Jawa Barat"
+    if lat and lon:
+        if abs(lat - (-6.81)) < 0.1 and abs(lon - 107.02) < 0.1:
+            location = "Cianjur, Jawa Barat"
+        else:
+            location = "Jawa Barat, Indonesia"
+            
     return {
         "temperature": round(random.uniform(26.0, 34.0), 1),
         "humidity": round(random.uniform(60.0, 95.0), 1),
@@ -68,12 +82,22 @@ def generate_mock_weather() -> Dict[str, Any]:
         "wind": round(random.uniform(2.0, 15.0), 1),
         "rain": round(random.uniform(0.0, 0.8), 2),
         "warning": None,
+        "location": location,
         "timestamp": datetime.utcnow(),
     }
 
 
 def cache_weather(db: Session, weather_data: Dict[str, Any], lat: float = None, lon: float = None) -> Weather:
     """Save weather data to database cache."""
+    location = weather_data.get("location")
+    if not location and lat and lon:
+        if abs(lat - (-6.81)) < 0.1 and abs(lon - 107.02) < 0.1:
+            location = "Cianjur, Jawa Barat"
+        else:
+            location = "Jawa Barat, Indonesia"
+    elif not location:
+        location = "Cianjur, Jawa Barat"
+        
     weather = Weather(
         temperature=weather_data.get("temperature"),
         humidity=weather_data.get("humidity"),
@@ -82,6 +106,7 @@ def cache_weather(db: Session, weather_data: Dict[str, Any], lat: float = None, 
         warning=weather_data.get("warning"),
         weather_code=weather_data.get("weather_code"),
         weather_desc=weather_data.get("weather_desc"),
+        location=location,
         latitude=lat,
         longitude=lon,
         timestamp=weather_data.get("timestamp", datetime.utcnow()),

@@ -51,7 +51,6 @@ def create_farm(
         longitude=farm_data.longitude,
         variety=farm_data.variety,
         owner=farm_data.owner,
-        user_id=farm_data.user_id,
     )
     db.add(farm)
     db.commit()
@@ -78,6 +77,10 @@ def get_farm_detail(
     farm = db.query(Farm).filter(Farm.id == farm_id).first()
     if not farm:
         raise HTTPException(status_code=404, detail="Farm not found")
+    
+    # FARMER: can only access their own farm
+    if current_user.role == "FARMER" and current_user.farm_id != farm_id:
+        raise HTTPException(status_code=403, detail="Access denied")
     
     # Get latest prediction
     latest_prediction = (
@@ -113,7 +116,6 @@ def get_farm_detail(
             "longitude": farm.longitude,
             "variety": farm.variety,
             "owner": farm.owner,
-            "user_id": farm.user_id,
             "created_at": farm.created_at.isoformat(),
         },
         latest_prediction={

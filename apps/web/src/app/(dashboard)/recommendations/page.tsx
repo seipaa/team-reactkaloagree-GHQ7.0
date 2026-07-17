@@ -38,7 +38,7 @@ export default function RecommendationsPage() {
     });
 
     return (
-        <div className="space-y-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
             <div>
                 <h1 className="text-2xl font-bold text-gray-900">Rekomendasi Panen</h1>
                 <p className="text-gray-500">Prioritas aksi berdasarkan Harvest Intelligence Engine</p>

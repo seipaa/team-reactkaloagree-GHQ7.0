@@ -31,6 +31,14 @@ class UploadResponse(BaseModel):
     image_url: str
     image_id: int
     message: str
+    ripeness: Optional[float] = None
+    fruit_count: Optional[int] = None
+    disease: Optional[str] = None
+    recommendation: Optional[str] = None
+    priority: Optional[str] = None
+    reason: Optional[str] = None
+    harvest_readiness: Optional[float] = None
+    disease_risk: Optional[str] = None
 
 
 class HIEInput(BaseModel):

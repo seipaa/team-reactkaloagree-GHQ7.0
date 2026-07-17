@@ -29,8 +29,15 @@ def get_dashboard(db: Session = Depends(get_db), current_user: User = Depends(ge
     - All recommendations
     - Map markers with status
     """
-    # Get all farms
-    farms = db.query(Farm).all()
+    # Get farms based on role
+    if current_user.role == "FARMER":
+        if current_user.farm_id:
+            farms = db.query(Farm).filter(Farm.id == current_user.farm_id).all()
+        else:
+            farms = []
+    else:
+        farms = db.query(Farm).all()
+        
     total_farms = len(farms)
     
     # Get latest predictions for each farm

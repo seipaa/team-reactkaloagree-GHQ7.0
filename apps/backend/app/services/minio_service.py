@@ -57,18 +57,19 @@ def upload_image(file_content: bytes, filename: str, farm_id: int) -> str:
     elif ext.lower() in [".webp"]:
         content_type = "image/webp"
 
+    import io
     try:
         # Upload the file
         client.put_object(
             bucket_name=settings.minio_bucket,
             object_name=object_name,
-            data=file_content,
+            data=io.BytesIO(file_content),
             length=len(file_content),
             content_type=content_type,
         )
 
-        # Generate public URL
-        url = f"http://{settings.minio_endpoint}/{settings.minio_bucket}/{object_name}"
+        # Generate public URL (relative for the frontend, handled via Nginx reverse proxy)
+        url = f"/agromesh-images/{object_name}"
         return url, object_name
     except S3Error as e:
         print(f"Error uploading image: {e}")

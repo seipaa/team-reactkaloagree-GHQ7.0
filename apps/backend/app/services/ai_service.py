@@ -1,38 +1,103 @@
-"""AI service for harvest prediction integration."""
+"""AI service for harvest prediction integration - Updated with Roboflow."""
 import random
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import requests
+import base64
+import io
 
 from app.config import settings
+from app.services.roboflow_service import get_roboflow_service
 
 
 def call_ai_api(image_url: str) -> Dict[str, Any]:
     """
     Call the AI service to get harvest predictions.
     
-    This function is designed to be replaced with a real AI integration.
-    Currently returns realistic mock data for demo purposes.
+    This function integrates with Roboflow AI models for:
+    1. Disease detection (Model 1)
+    2. Fruit counting (Model 2)
+    3. Health classification (Model 3)
+    
+    Falls back to mock data if Roboflow API is unavailable.
     
     Returns:
         Dict containing: ripeness, fruit_count, disease, confidence
     """
-    # Check if we have a real AI endpoint configured
-    if settings.ai_api_url and settings.ai_api_url != "http://localhost:8001/predict":
-        try:
-            response = requests.post(
-                settings.ai_api_url,
-                json={"image_url": image_url},
-                headers={"Authorization": f"Bearer {settings.ai_api_key}"} if settings.ai_api_key else {},
-                timeout=30,
-            )
-            response.raise_for_status()
-            return response.json()
-        except Exception as e:
-            print(f"AI API call failed, using mock data: {e}")
+    # Try to get image data from URL
+    try:
+        # Resolve relative URL to internal MinIO endpoint if needed
+        actual_url = image_url
+        if image_url.startswith("/agromesh-images/"):
+            actual_url = f"http://minio:9000{image_url}"
+        elif image_url.startswith("/"):
+            actual_url = f"http://minio:9000/agromesh-images{image_url}"
+        
+        # Download image
+        response = requests.get(actual_url, timeout=10)
+        response.raise_for_status()
+        image_data = response.content
+        
+        # Use Roboflow service for predictions
+        roboflow_service = get_roboflow_service()
+        result = roboflow_service.predict_all(image_data)
+        
+        return {
+            "ripeness": result.get("ripeness", 50),
+            "fruit_count": result.get("fruit_count", 0),
+            "disease": result.get("disease", "HEALTHY"),
+            "confidence": result.get("overall_confidence", 0.5),
+            # Additional metadata from Roboflow
+            "disease_confidence": result.get("disease_confidence", 0.5),
+            "fruit_count_confidence": result.get("fruit_count_confidence", 0.5),
+            "is_healthy": result.get("is_healthy", True),
+            "health_confidence": result.get("health_confidence", 0.5),
+            "model_1_detected": result.get("model_1_detected"),
+            "model_2_count": result.get("model_2_count", 0),
+            "model_3_health_class": result.get("model_3_health_class"),
+            "source": "roboflow"
+        }
+        
+    except Exception as e:
+        print(f"Roboflow API call failed: {e}")
+        print("Falling back to mock data...")
+        return generate_mock_prediction()
+
+
+def call_ai_api_with_image_data(image_data: bytes) -> Dict[str, Any]:
+    """
+    Call AI service with raw image data.
     
-    # Return realistic mock data for demo
-    # In production, this would be replaced with actual AI inference
-    return generate_mock_prediction()
+    Args:
+        image_data: Raw image bytes
+        
+    Returns:
+        Dict containing: ripeness, fruit_count, disease, confidence
+    """
+    try:
+        # Use Roboflow service for predictions
+        roboflow_service = get_roboflow_service()
+        result = roboflow_service.predict_all(image_data)
+        
+        return {
+            "ripeness": result.get("ripeness", 50),
+            "fruit_count": result.get("fruit_count", 0),
+            "disease": result.get("disease", "HEALTHY"),
+            "confidence": result.get("overall_confidence", 0.5),
+            # Additional metadata from Roboflow
+            "disease_confidence": result.get("disease_confidence", 0.5),
+            "fruit_count_confidence": result.get("fruit_count_confidence", 0.5),
+            "is_healthy": result.get("is_healthy", True),
+            "health_confidence": result.get("health_confidence", 0.5),
+            "model_1_detected": result.get("model_1_detected"),
+            "model_2_count": result.get("model_2_count", 0),
+            "model_3_health_class": result.get("model_3_health_class"),
+            "source": "roboflow"
+        }
+        
+    except Exception as e:
+        print(f"Roboflow API call failed: {e}")
+        print("Falling back to mock data...")
+        return generate_mock_prediction()
 
 
 def generate_mock_prediction() -> Dict[str, Any]:

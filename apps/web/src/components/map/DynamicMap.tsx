@@ -72,22 +72,9 @@ export function DynamicMap({
 
         const svgIcon = `
             <svg width="${size}" height="${size + 8}" viewBox="0 0 ${size} ${size + 8}" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                    <filter id="glow-${status}" x="-50%" y="-50%" width="200%" height="200%">
-                        <feGaussianBlur stdDeviation="${isSelected ? 4 : 2}" result="coloredBlur"/>
-                        <feMerge>
-                            <feMergeNode in="coloredBlur"/>
-                            <feMergeNode in="SourceGraphic"/>
-                        </feMerge>
-                    </filter>
-                    <linearGradient id="grad-${status}" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" style="stop-color:${color};stop-opacity:1" />
-                        <stop offset="100%" style="stop-color:${color};stop-opacity:0.85" />
-                    </linearGradient>
-                </defs>
                 <ellipse cx="${size / 2}" cy="${size + 4}" rx="${shadowSize}" ry="${shadowSize / 3}" fill="rgba(0,0,0,0.25)"/>
                 <path d="M${size / 2} ${isSelected ? 6 : 8}C${size / 2 - 12} ${isSelected ? 6 : 8} ${size / 2 - 16} 14 ${size / 2 - 16} 22C${size / 2 - 16} 32 ${size / 2} ${size - 2} ${size / 2} ${size - 2}C${size / 2} ${size - 2} ${size / 2 + 16} 32 ${size / 2 + 16} 22C${size / 2 + 16} 14 ${size / 2 + 12} ${isSelected ? 6 : 8} ${size / 2} ${isSelected ? 6 : 8}Z" 
-                      fill="url(#grad-${status})" stroke="white" stroke-width="${isSelected ? 3 : 2}" filter="url(#glow-${status})"/>
+                      fill="${color}" stroke="white" stroke-width="${isSelected ? 3 : 2}"/>
                 <circle cx="${size / 2}" cy="${size / 2 - 4}" r="${size / 4}" fill="white" opacity="0.95"/>
                 <text x="${size / 2}" y="${size / 2 + 2}" text-anchor="middle" dominant-baseline="middle" font-size="${isSelected ? 18 : 14}">🌶️</text>
             </svg>
@@ -115,6 +102,7 @@ export function DynamicMap({
             <MapContainer
                 center={mapCenter}
                 zoom={zoom}
+                zoomControl={false}
                 style={{ height: "100%", width: "100%" }}
                 className="z-0"
             >

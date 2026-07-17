@@ -27,17 +27,23 @@ async def upload_image_endpoint(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Upload an image from ESP32 or manual upload.
+    Upload an image and run AI prediction on it.
     
     This endpoint:
     1. Saves the image to MinIO
-    2. Creates an image record in the database
-    3. Returns the image URL and prediction ID
+    2. Runs AI prediction (Roboflow)
+    3. Fetches latest weather data (BMKG)
+    4. Runs Harvest Intelligence Engine (HIE)
+    5. Saves prediction & image records to database
     """
     # Verify farm exists
     farm = db.query(Farm).filter(Farm.id == farm_id).first()
     if not farm:
         raise HTTPException(status_code=404, detail="Farm not found")
+        
+    # FARMER: can only upload to their own farm
+    if current_user.role == "FARMER" and current_user.farm_id != farm_id:
+        raise HTTPException(status_code=403, detail="Access denied")
     
     # Read file content
     content = await file.read()
@@ -67,11 +73,59 @@ async def upload_image_endpoint(
         db.add(image)
         db.commit()
         db.refresh(image)
+
+        # Trigger AI Prediction and HIE rules
+        from app.services.ai_service import call_ai_api_with_image_data
+        from app.services.hie_service import run_hie
+        from app.services.weather_service import get_latest_weather
+        from app.models.prediction import Prediction, Priority, DiseaseStatus
+
+        # Step 1: Call AI service using local file bytes
+        ai_result = call_ai_api_with_image_data(content)
+        
+        # Step 2: Get weather data
+        weather = get_latest_weather(db)
+        temperature = weather.temperature if weather else None
+        humidity = weather.humidity if weather else None
+        
+        # Step 3: Run HIE rule engine
+        hie_result = run_hie(
+            ripeness=ai_result.get("ripeness", 50),
+            fruit_count=ai_result.get("fruit_count", 0),
+            disease=ai_result.get("disease", "HEALTHY"),
+            confidence=ai_result.get("confidence", 0.5),
+            temperature=temperature,
+            humidity=humidity,
+        )
+        
+        # Step 4: Save prediction to database
+        prediction = Prediction(
+            farm_id=farm_id,
+            ripeness=ai_result.get("ripeness", 50),
+            fruit_count=ai_result.get("fruit_count", 0),
+            disease=DiseaseStatus(ai_result.get("disease", "HEALTHY")),
+            confidence=ai_result.get("confidence", 0.5),
+            recommendation=hie_result.get("recommendation"),
+            priority=Priority(hie_result.get("harvest_priority")),
+            reason=hie_result.get("reason"),
+            harvest_readiness=hie_result.get("harvest_readiness"),
+            disease_risk=hie_result.get("disease_risk"),
+        )
+        db.add(prediction)
+        db.commit()
         
         return UploadResponse(
             image_url=image_url,
             image_id=image.id,
-            message="Image uploaded successfully. Ready for AI prediction."
+            message="Image uploaded and successfully analyzed by AI.",
+            ripeness=ai_result.get("ripeness", 50),
+            fruit_count=ai_result.get("fruit_count", 0),
+            disease=ai_result.get("disease", "HEALTHY"),
+            recommendation=hie_result.get("recommendation"),
+            priority=hie_result.get("harvest_priority"),
+            reason=hie_result.get("reason"),
+            harvest_readiness=hie_result.get("harvest_readiness"),
+            disease_risk=hie_result.get("disease_risk"),
         )
     except Exception as e:
         db.rollback()
